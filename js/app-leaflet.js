@@ -1,6 +1,7 @@
 var map;
 var poiData = {
 	data: {},
+	dataCalls: [],
 	setBbox: function () {
 		// Set bounding box for the osm query
 		var bboxNE = map.getBounds().getNorthEast();
@@ -8,11 +9,12 @@ var poiData = {
 		this.bboxStr = `(${bboxSW.lat},${bboxSW.lng},${bboxNE.lat},${bboxNE.lng})`;
 	},
 	addAllData: function () {
-		// Add osm poi data on all poi types defined in appPoiTypes to poiData.data
+		// Add osm poi data on all poi types defined in appPoi.types to poiData.data
 		var that = this;
-		Object.keys(appPoiTypes).forEach(function(poiKey){
-			for (i=0; i<appPoiTypes[poiKey].length; i++) {
-				that.addData(poiKey, appPoiTypes[poiKey][i]);
+		Object.keys(appPoi.types).forEach(function(poiKey){
+			for (i=0; i<appPoi.types[poiKey].length; i++) {
+				// Push jqXHR (deferred) returned by $.ajax() to dataCalls for further use with $.when()
+				that.dataCalls.push(that.addData(poiKey, appPoi.types[poiKey][i]));
 			}
 		});
 	},
@@ -20,7 +22,7 @@ var poiData = {
 		// Add osm poi data on one poi type to poiData.data
 		var nodeStr = `node[${poiKey}=${poiValue}]`;
 		var that = this;
-		$.ajax({
+		return $.ajax({
 			url: 'https://www.overpass-api.de/api/interpreter' +
 						'?data=[out:json][timeout:60];' +
 						nodeStr + this.bboxStr + ';' +
@@ -44,11 +46,41 @@ var poiData = {
 	}
 };
 
-var appPoiTypes = {
-	// List of all osm keys for map features: https://wiki.openstreetmap.org/wiki/Map_Features
-	amenity: ["restaurant", "cafe", "pub"],
-	historic: ["castle","church","monument"]
-};
+var appPoi = {
+	types: {
+		// Pre-defined poi types available in the app. The types conform to the osm format.
+		// Reference: list of all osm keys for map features: https://wiki.openstreetmap.org/wiki/Map_Features
+		amenity: ["restaurant", "cafe", "pub"],
+		//historic: ["castle","church","monument"]
+	},
+	layerGroups: {},
+	addAllPoi: function () {
+		// Retrieve all poi data
+		that = this;
+		var appPoiData = JSON.parse(localStorage.poiData);
+		var poiGroup;
+		// Add all poi to the appropriate layer groups
+		Object.keys(appPoiData).forEach(function(poiType){
+			// Add all poi of a given type to a layer
+			that.layerGroups[poiType] = new L.LayerGroup();
+			poiGroup = appPoiData[poiType].elements;
+			for (i = 0; i < poiGroup.length; i++) {
+				that.addPoi(poiGroup[i], poiType, that.layerGroups[poiType]);
+			};
+			// Add layer group to map
+			that.layerGroups[poiType].addTo(map);
+		});
+	},
+	addPoi: function (myPoi, poiType, layerGroup) {
+		// Add one poi marker to layer group
+		var myMarker = L.marker([myPoi.lat, myPoi.lon]);
+		var popupContent = `<strong>${myPoi.tags.name}</strong> <br />
+		${poiType} <br />
+		${myPoi.tags["addr:street"]} ${myPoi.tags["addr:housenumber"]}, ${myPoi.tags["addr:city"]}`;
+		myMarker.bindPopup(popupContent).openPopup();
+		myMarker.addTo(layerGroup);
+	}
+}
 
 function initMap() {
 	// Set up the map
@@ -63,9 +95,17 @@ function initMap() {
 	map.setView(new L.LatLng(50.0540, 19.9354),16);
 	map.addLayer(osm);
 
-	// Get point of interest (poi) data from OpenStreetMap (osm) when running the app for the first time
+	// Add all poi to map
 	if (typeof localStorage.poiData === 'undefined') {
+		// Get point of interest (poi) data from OpenStreetMap (osm) when running the app for the first time
 		poiData.setBbox();
 		poiData.addAllData();
-	};
+		// Proceed with adding poi to map only after all poi data has been saved to localStorage
+		$.when.apply($, poiData.dataCalls).then(function(){
+			appPoi.addAllPoi();
+		});
+	} else {
+		// Add poi to map
+		appPoi.addAllPoi();
+	}
 }
