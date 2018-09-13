@@ -1,9 +1,23 @@
+* {
+  box-sizing: border-box;
+}
+
 html, body {
  height: 100%;
  margin: 0;
  padding: 0;
 }
 
+.app-box {
+  display: flex;
+  width: 100%;
+}
+
+.info-box {
+  width: 20%;
+}
+
 #krakowMap {
-  height: 100%;
+  width: 80%;
+  height: 400px;
 }
