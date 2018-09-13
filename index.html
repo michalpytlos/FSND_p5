@@ -14,13 +14,13 @@
   <div class="app-box">
     <div class="info-box">
       <div class="search-box">search box</div>
-      <div class="type-box" data-bind="foreach: layers">
-        <input type="checkbox" value="" id="" checked data-bind="attr: {id: name}">
+      <div class="type-box" data-bind="foreach: map.layers">
+        <input type="checkbox" value="" id="" data-bind="checked: active, attr: {id: name}, click: $root.updateLayers">
         <label for="" data-bind="text: name, attr: {for: name}"></label><br />
       </div>
-      <div class="list-box" data-bind="foreach: layers">
-        <h4 data-bind="text: name"></h4>
-        <ul data-bind="foreach: markers.sort(function(l,r){
+      <div class="list-box" data-bind="foreach: map.layers">
+        <h4 data-bind="visible: active(), text: name"></h4>
+        <ul data-bind="visible: active(), foreach: markers.sort(function(l,r){
           return l.name() > r.name() ? 1:-1;
         })">
             <li data-bind="text: name"></li>

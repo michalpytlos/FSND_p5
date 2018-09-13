@@ -81,12 +81,12 @@ P5.map.init = function () {
 	this.leafMap.addLayer(osm);
 
 	// add poi data to map and to layers
-	this.loadPoiData();
+	this.loadData();
 }
 
 
-/** Method for map.  Load poi data to leaflet map and map.layers. Fetch data from osm if missing. */
-P5.map.loadPoiData = function () {
+/** Method for map.  Load poi data to leaflet map and map.layers. Fetch data from osm if no poi data. */
+P5.map.loadData = function () {
 	that = this;
 	if (typeof localStorage.poiData === 'undefined') {
 		// Get point of interest (poi) data from OpenStreetMap (osm) when running the app for the first time
@@ -101,13 +101,26 @@ P5.map.loadPoiData = function () {
 		Object.keys(appPoiData).forEach(function(poiType){
 			// Create new layer group
 			var myLGroup = new P5.Layer(poiType);
-			// Create and add to layer group all markers of the corresponding type
-			myLGroup.addAllMarkers(appPoiData[poiType].elements);
+			// Create and add to layer all markers of the corresponding type
+			myLGroup.addMarkers(appPoiData[poiType].elements);
 			// Add layer group to map.layers
 			that.layers.push(myLGroup);
 			// Add layer group to map
-			myLGroup.leafObj.addTo(P5.map.leafMap);
+			myLGroup.leafLayer.addTo(P5.map.leafMap);
 		});
+	});
+}
+
+
+/** Method for map. Update leaflet map layers. */
+P5.map.updateLayersMap = function () {
+	that = this;
+	that.layers().forEach(function(LLayer){
+		if (!LLayer.active() && that.leafMap.hasLayer(LLayer.leafLayer)){
+			LLayer.leafLayer.removeFrom(that.leafMap);
+		} else if (LLayer.active() && !that.leafMap.hasLayer(LLayer.leafLayer)) {
+			LLayer.leafLayer.addTo(that.leafMap);
+		}
 	});
 }
 
@@ -116,10 +129,10 @@ P5.map.loadPoiData = function () {
 P5.Marker = function (data, poiType){
 	this.name = ko.observable(data.tags.name);
 	this.active = ko.observable(true);
-	this.leafObj = L.marker([data.lat, data.lon]);
+	this.leafMarker = L.marker([data.lat, data.lon]);
 	this.popupContent = `<strong>${data.tags.name}</strong> <br />${poiType}`;
 	// Bind popup to marker
-	this.leafObj.bindPopup(this.popupContent).openPopup();
+	this.leafMarker.bindPopup(this.popupContent).openPopup();
 }
 
 
@@ -127,18 +140,18 @@ P5.Marker = function (data, poiType){
 P5.Layer = function (name){
 	this.name = ko.observable(name);
 	this.active = ko.observable(true);
-	this.leafObj = new L.LayerGroup();
+	this.leafLayer = new L.LayerGroup();
 	this.markers = ko.observableArray([]);
 }
 
 
 /** Method for Layer objects. Create and add to this layer all markers of the appropriate type  */
-P5.Layer.prototype.addAllMarkers = function(data){
+P5.Layer.prototype.addMarkers = function(data){
 	for (i = 0; i < data.length; i++) {
 		// create new poi marker
 		marker = new P5.Marker(data[i], this.name());
 		// add leaflet marker to leaflet layerGroup
-		marker.leafObj.addTo(this.leafObj);
+		marker.leafMarker.addTo(this.leafLayer);
 		// add marker to th
 		this.markers().push(marker);
 	};
@@ -147,7 +160,11 @@ P5.Layer.prototype.addAllMarkers = function(data){
 
 /** knockout.js viewModel constructor */
 P5.viewModel = function() {
-	this.layers = P5.map.layers;
+	this.map = P5.map;
+	this.updateLayers = function() {
+		P5.map.updateLayersMap();
+		return true; // need to return true for checked binding to work
+	};
 	P5.map.init();
 };
 
