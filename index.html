@@ -13,7 +13,10 @@
 <body>
   <div class="app-box">
     <div class="info-box">
-      <div class="search-box">search box</div>
+      <form data-bind="submit: searchMarkers">
+        <input type="text" name="searchPhrase">
+        <button type="submit">Search</button>
+      </form>
       <div class="type-box" data-bind="foreach: map.layers">
         <input type="checkbox" value="" id="" data-bind="checked: active, attr: {id: name}, click: $root.updateLayers">
         <label for="" data-bind="text: name, attr: {for: name}"></label><br />
@@ -23,7 +26,7 @@
         <ul data-bind="visible: active(), foreach: markers.sort(function(l,r){
           return l.name() > r.name() ? 1:-1;
         })">
-            <li data-bind="text: name"></li>
+            <li data-bind="visible: active(), text: name"></li>
         </ul>
       </div>
     </div>

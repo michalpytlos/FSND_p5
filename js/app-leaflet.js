@@ -112,15 +112,50 @@ P5.map.loadData = function () {
 }
 
 
-/** Method for map. Update leaflet map layers. */
+/** Method for map.
+* Update leaflet layers:
+* active layers are added to the map (if not present)
+* non-active layers are removed from the map (if present)
+*/
 P5.map.updateLayersMap = function () {
 	that = this;
-	that.layers().forEach(function(LLayer){
-		if (!LLayer.active() && that.leafMap.hasLayer(LLayer.leafLayer)){
-			LLayer.leafLayer.removeFrom(that.leafMap);
-		} else if (LLayer.active() && !that.leafMap.hasLayer(LLayer.leafLayer)) {
-			LLayer.leafLayer.addTo(that.leafMap);
+	that.layers().forEach(function(layer){
+		if (!layer.active() && that.leafMap.hasLayer(layer.leafLayer)){
+			layer.leafLayer.removeFrom(that.leafMap);
+		} else if (layer.active() && !that.leafMap.hasLayer(layer.leafLayer)) {
+			layer.leafLayer.addTo(that.leafMap);
 		}
+	});
+}
+
+
+/** Method for map.
+* Update leaflet markers:
+* markers not satysfying the search criterion are removed from the map and marked as non-active (if present)
+* markers satysfying the search criterion are added to the map and marked as active (if not present)
+*/
+P5.map.updateMarkersMap = function (searchPhrase) {
+	that = this;
+	that.layers().forEach(function(layer){
+		if (layer.active()) {
+			layer.markers().forEach(function(marker){
+				try {
+					hasPhrase = marker.name().toLowerCase().indexOf(searchPhrase.toLowerCase());
+				}
+				catch (err) {
+					console.log(err.name);
+					hasPhrase = -1;
+				}
+				hasMarker = layer.leafLayer.hasLayer(marker.leafMarker);
+				if (hasMarker && hasPhrase === -1) {
+					marker.leafMarker.removeFrom(layer.leafLayer);
+					marker.active(false);
+				} else if (!hasMarker && hasPhrase !== -1){
+					marker.leafMarker.addTo (layer.leafLayer);
+					marker.active(true);
+				}
+			});
+		};
 	});
 }
 
@@ -149,10 +184,10 @@ P5.Layer = function (name){
 P5.Layer.prototype.addMarkers = function(data){
 	for (i = 0; i < data.length; i++) {
 		// create new poi marker
-		marker = new P5.Marker(data[i], this.name());
+		var marker = new P5.Marker(data[i], this.name());
 		// add leaflet marker to leaflet layerGroup
 		marker.leafMarker.addTo(this.leafLayer);
-		// add marker to th
+		// add marker to this layer
 		this.markers().push(marker);
 	};
 }
@@ -164,6 +199,9 @@ P5.viewModel = function() {
 	this.updateLayers = function() {
 		P5.map.updateLayersMap();
 		return true; // need to return true for checked binding to work
+	};
+	this.searchMarkers = function (formElement) {
+		P5.map.updateMarkersMap(formElement.elements.namedItem("searchPhrase").value);
 	};
 	P5.map.init();
 };
