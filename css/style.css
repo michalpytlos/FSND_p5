@@ -21,3 +21,15 @@ html, body {
   width: 80%;
   height: 400px;
 }
+
+.std-marker-icon {
+  color: rgb(66, 134, 244);
+}
+
+.selected-marker-icon {
+  color: red;
+}
+
+.selected-marker {
+  color: red
+};

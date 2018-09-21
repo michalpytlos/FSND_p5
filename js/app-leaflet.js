@@ -65,7 +65,23 @@ P5.poiData = {
 /** Container holding all map layers, leaflet map object and methods relevant to them */
 P5.map = {
 	leafMap: new L.Map('krakowMap'),
-	layers: ko.observableArray([])
+	layers: ko.observableArray([]),
+	selectedMarker: ko.observable(null),
+	markerDict: {}, // dictionary with marker_id: marker pairs
+	icons: {
+		stdIcon: L.divIcon({
+			 className:'std-marker-icon',
+			 html:'<i class="material-icons" style="font-size:36px">place</i>',
+			 iconAnchor: [18,36],
+			 popupAnchor: [0,-32]
+		}),
+		selIcon: L.divIcon({
+			 className:'selected-marker-icon',
+			 html:'<i class="material-icons" style="font-size:36px">place</i>',
+			 iconAnchor: [18,36],
+			 popupAnchor: [0,-32]
+		})
+	}
 };
 
 
@@ -99,17 +115,36 @@ P5.map.loadData = function () {
 		var appPoiData = JSON.parse(localStorage.poiData);
 		// Load poi data to map and to map.layers
 		Object.keys(appPoiData).forEach(function(poiType){
-			// Create new layer group
-			var myLGroup = new P5.Layer(poiType);
+			// Create new layer
+			var layer = new P5.Layer(poiType);
 			// Create and add to layer all markers of the corresponding type
-			myLGroup.addMarkers(appPoiData[poiType].elements);
-			// Add layer group to map.layers
-			that.layers.push(myLGroup);
-			// Add layer group to map
-			myLGroup.leafLayer.addTo(P5.map.leafMap);
+			layer.addMarkers(appPoiData[poiType].elements);
+			// Add layer to map.layers
+			that.layers.push(layer);
+			// Add leaflet layer to map
+			layer.leafLayer.addTo(P5.map.leafMap);
 		});
 	});
 }
+
+P5.map.toggleMarker = function(marker) {
+	unselMarker = this.selectedMarker();
+	this.unselectMarker();
+	if (unselMarker !== marker) {
+		marker.leafMarker.setIcon(P5.map.icons.selIcon);
+		marker.selected(true);
+		this.selectedMarker(marker);
+	};
+};
+
+P5.map.unselectMarker = function () {
+	if (this.selectedMarker() !== null) {
+		marker = this.selectedMarker();
+		marker.leafMarker.setIcon(P5.map.icons.stdIcon);
+		marker.selected(false);
+		this.selectedMarker(null);
+	};
+};
 
 
 /** Method for map.
@@ -134,7 +169,7 @@ P5.map.updateLayersMap = function () {
 * markers not satysfying the search criterion are removed from the map and marked as non-active (if present)
 * markers satysfying the search criterion are added to the map and marked as active (if not present)
 */
-P5.map.updateMarkersMap = function (searchPhrase) {
+P5.map.updateMarkers = function (searchPhrase) {
 	that = this;
 	that.layers().forEach(function(layer){
 		if (layer.active()) {
@@ -161,10 +196,12 @@ P5.map.updateMarkersMap = function (searchPhrase) {
 
 
 /** Marker constructor */
-P5.Marker = function (data, poiType){
+P5.Marker = function (data, poiType, markerId){
 	this.name = ko.observable(data.tags.name);
 	this.active = ko.observable(true);
-	this.leafMarker = L.marker([data.lat, data.lon]);
+	this.selected = ko.observable(false);
+	this.leafMarker = L.marker([data.lat, data.lon], {icon: P5.map.icons.stdIcon});
+	this.leafMarker.id = markerId;
 	this.popupContent = `<strong>${data.tags.name}</strong> <br />${poiType}`;
 	// Bind popup to marker
 	this.leafMarker.bindPopup(this.popupContent).openPopup();
@@ -184,26 +221,39 @@ P5.Layer = function (name){
 P5.Layer.prototype.addMarkers = function(data){
 	for (i = 0; i < data.length; i++) {
 		// create new poi marker
-		var marker = new P5.Marker(data[i], this.name());
+		markerId = this.name() + i;
+		var marker = new P5.Marker(data[i], this.name(), markerId);
 		// add leaflet marker to leaflet layerGroup
-		marker.leafMarker.addTo(this.leafLayer);
+		marker.leafMarker.addTo(this.leafLayer).on('click', function(){
+			marker = P5.map.markerDict[this.id]; // this = clicked leafMarker
+			P5.map.toggleMarker(marker);
+		});
 		// add marker to this layer
 		this.markers().push(marker);
+		// add marker to dictionary
+		P5.map.markerDict[markerId] = marker;
 	};
 }
 
 
 /** knockout.js viewModel constructor */
 P5.viewModel = function() {
+	that = this;
 	this.map = P5.map;
 	this.updateLayers = function() {
 		P5.map.updateLayersMap();
 		return true; // need to return true for checked binding to work
 	};
 	this.searchMarkers = function (formElement) {
-		P5.map.updateMarkersMap(formElement.elements.namedItem("searchPhrase").value);
+		P5.map.unselectMarker();
+		P5.map.updateMarkers(formElement.elements.namedItem("searchPhrase").value);
 	};
 	P5.map.init();
+	this.toggleMarker = function(marker) {
+		P5.map.toggleMarker(marker);
+		// toggle map popup
+		marker.leafMarker.togglePopup();
+	};
 };
 
 

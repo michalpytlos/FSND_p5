@@ -6,6 +6,7 @@
   <meta name="viewport" content="initial-scale=1.0">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" type="text/css" href="js/libs/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <script type="text/javascript" src="js/libs/leaflet/leaflet.js"></script>
   <script type="text/javascript" src="js/libs/knockout-3.4.2.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
@@ -26,7 +27,7 @@
         <ul data-bind="visible: active(), foreach: markers.sort(function(l,r){
           return l.name() > r.name() ? 1:-1;
         })">
-            <li data-bind="visible: active(), text: name"></li>
+            <li data-bind="visible: active(), click: $root.toggleMarker, text: name, css: { 'selected-marker': selected() }"></li>
         </ul>
       </div>
     </div>
