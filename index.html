@@ -14,10 +14,29 @@
 <body>
   <div class="app-box">
     <div class="info-box">
-      <form data-bind="submit: searchMarkers">
-        <input type="text" name="searchPhrase">
-        <button type="submit">Search</button>
-      </form>
+      <div class="location-box">
+        <h4 class="location-address" data-bind="text: map.address.city()"></h4>
+        <button data-bind="click: toggleShowLocForm, visible: showLocForm">Change location</button>
+        <form data-bind="submit: loadLocation, visible: !showLocForm()">
+          <label for="country">Country</label><br />
+          <input type="text" id="country" name="country" required="required" data-bind="value: map.address.country"><br />
+          <label for="city">City</label><br />
+          <input type="text" id="city" name="city" required="required" data-bind="value: map.address.city"><br />
+          <label for="street">Street (optional)</label><br />
+          <input type="text" id="street" name="street"><br />
+          <label for="postalcode">Postal code (optional)</label><br />
+          <input type="text" id="postalcode" name="postalcode"><br />
+          <button type="submit">Change</button>
+          <button type="button" data-bind="click: toggleShowLocForm">Cancel</button>
+        </form>
+        <br /><br />
+      </div>
+      <div class="search-box">
+        <form data-bind="submit: searchMarkers">
+          <input type="text" name="searchPhrase">
+          <button type="submit">Search</button>
+        </form>
+      </div>
       <div class="type-box" data-bind="foreach: map.layers">
         <input type="checkbox" value="" id="" data-bind="checked: active, attr: {id: name}, click: $root.updateLayers">
         <label for="" data-bind="text: name, attr: {for: name}"></label><br />
@@ -31,7 +50,7 @@
         </ul>
       </div>
     </div>
-    <div id="krakowMap"></div>
+    <div id="myLocation"></div>
   </div>
   <script type="text/javascript" src="js/app-leaflet.js"></script>
 </body>

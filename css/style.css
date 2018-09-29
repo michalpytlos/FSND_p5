@@ -17,9 +17,9 @@ html, body {
   width: 20%;
 }
 
-#krakowMap {
+#myLocation {
   width: 80%;
-  height: 400px;
+  height: 800px;
 }
 
 .std-marker-icon {
