@@ -8,8 +8,7 @@ var P5 = {};
 * Reference: list of all osm keys for map features: https://wiki.openstreetmap.org/wiki/Map_Features
 */
 P5.poiTypes = {
-	amenity: ["restaurant", "cafe", "pub"],
-	//historic: ["castle","church","monument"]
+	amenity: ["restaurant", "cafe", "pub", "fast_food"],
 };
 
 
@@ -82,12 +81,13 @@ P5.poiData = {
 			method: 'GET',
 			dataType: 'json',
 			success: function(osmPoiData) {
+				that.purgeOsmPoiData(osmPoiData);
 				that.data[poiValue] = osmPoiData;
 				that.saveData();
 				console.log('Data on ' + poiValue + ' saved to localStorage');
 			},
 			error: function(){
-				console.log('Unsuccessful request to osm: ' + poiValue);
+				window.alert('Unsuccessful request to Overpass API (' + poiValue + '). Data could not be downloaded.');
 			},
 		});
 	},
@@ -134,6 +134,14 @@ P5.poiData = {
 			};
 			return address
 		}
+	},
+	purgeOsmPoiData: function(osmPoiData) {
+		// Remove all poi without a name from the data
+		for (i = osmPoiData.elements.length -1; i >= 0; --i) {
+			if (typeof osmPoiData.elements[i].tags.name === 'undefined' || !osmPoiData.elements[i].tags.name){
+				osmPoiData.elements.splice(i, 1);
+			}
+		}
 	}
 };
 
@@ -142,9 +150,10 @@ P5.poiData = {
 P5.map = {
 	address: {
 		country: ko.observable(null),
-		city: ko.observable(null)
+		city: ko.observable(null),
+		street: ko.observable(null)
 	},
-	leafMap: new L.Map('myLocation'),
+	leafMap: new L.Map('myLocation', {zoomControl: true}),
 	layers: ko.observableArray([]),
 	selectedMarker: null,
 	markerDict: {}, // dictionary with marker_id: marker pairs
@@ -177,12 +186,19 @@ P5.map.init = function () {
 	var location = JSON.parse(localStorage.P5_location);
 
 	//Save address
+	if (typeof location.address.road !== 'undefined' || location.address.road) {
+		that.address.street(location.address.road);
+	} else {
+		that.address.street(null);
+	};
 	that.address.country(location.address.country);
 	that.address.city(location.address.city);
 
 	// Set starting location
 	that.leafMap.setView(new L.LatLng(location.lat, location.lon),16);
 	that.leafMap.addLayer(osm);
+
+	that.leafMap.zoomControl.setPosition('bottomright');
 
 	// Reset layers
 	that.layers([]);
@@ -265,7 +281,6 @@ P5.map.updateLayersMap = function () {
 P5.map.updateMarkers = function (searchPhrase) {
 	that = this;
 	that.layers().forEach(function(layer){
-		if (layer.active()) {
 			layer.markers().forEach(function(marker){
 				try {
 					hasPhrase = marker.name().toLowerCase().indexOf(searchPhrase.toLowerCase());
@@ -283,7 +298,6 @@ P5.map.updateMarkers = function (searchPhrase) {
 					marker.active(true);
 				}
 			});
-		};
 	});
 }
 
@@ -302,11 +316,21 @@ P5.Marker = function (data, poiType, markerId){
 
 
 /** Layer constructor */
-P5.Layer = function (name){
+P5.Layer = function(name) {
 	this.name = ko.observable(name);
 	this.active = ko.observable(true);
+	this.collapsed = ko.observable(true);
 	this.leafLayer = new L.LayerGroup();
 	this.markers = ko.observableArray([]);
+	this.info = ko.computed(function(){
+		var activeMarkers = 0; // number of active markers in this layer
+		for (i = 0; i < this.markers().length; ++i) {
+			if (this.markers()[i].active() === true) {
+				++activeMarkers;
+			}
+		};
+		return this.name() + ' (' + activeMarkers + ')'
+	}, this);
 }
 
 
@@ -333,10 +357,7 @@ P5.Layer.prototype.addMarkers = function(data){
 P5.ViewModel = function() {
 	self = this;
 	this.map = P5.map;
-	this.showLocForm = ko.observable(true);
-	this.toggleShowLocForm = function(){
-		self.showLocForm(!self.showLocForm());
-	};
+	this.sideBar = ko.observable(true);
 	this.updateLayers = function() {
 		P5.map.updateLayersMap();
 		return true; // need to return true for checked binding to work
@@ -344,6 +365,13 @@ P5.ViewModel = function() {
 	this.searchMarkers = function (formElement) {
 		P5.map.unselectMarker();
 		P5.map.updateMarkers(formElement.elements.namedItem("searchPhrase").value);
+	};
+	this.toggleList = function (layer) {
+		layer.collapsed(!layer.collapsed());
+	};
+	this.toggleSidebar = function () {
+		self.sideBar(!self.sideBar());
+		console.log(self.sideBar());
 	};
 	this.toggleMarker = function(marker) {
 		P5.map.toggleMarker(marker);

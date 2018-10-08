@@ -3,8 +3,9 @@
 <head>
   <title>FSND project 5</title>
   <meta charset="utf-8">
-  <meta name="viewport" content="initial-scale=1.0">
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="js/libs/leaflet/leaflet.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <script type="text/javascript" src="js/libs/leaflet/leaflet.js"></script>
@@ -12,46 +13,109 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
 <body>
-  <div class="app-box">
-    <div class="info-box">
-      <div class="location-box">
-        <h4 class="location-address" data-bind="text: map.address.city()"></h4>
-        <button data-bind="click: toggleShowLocForm, visible: showLocForm">Change location</button>
-        <form data-bind="submit: loadLocation, visible: !showLocForm()">
-          <label for="country">Country</label><br />
-          <input type="text" id="country" name="country" required="required" data-bind="value: map.address.country"><br />
-          <label for="city">City</label><br />
-          <input type="text" id="city" name="city" required="required" data-bind="value: map.address.city"><br />
-          <label for="street">Street (optional)</label><br />
-          <input type="text" id="street" name="street"><br />
-          <label for="postalcode">Postal code (optional)</label><br />
-          <input type="text" id="postalcode" name="postalcode"><br />
-          <button type="submit">Change</button>
-          <button type="button" data-bind="click: toggleShowLocForm">Cancel</button>
-        </form>
-        <br /><br />
+  <!-- Navigation bar -->
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">FSND P5</a>
       </div>
-      <div class="search-box">
-        <form data-bind="submit: searchMarkers">
-          <input type="text" name="searchPhrase">
-          <button type="submit">Search</button>
-        </form>
-      </div>
-      <div class="type-box" data-bind="foreach: map.layers">
-        <input type="checkbox" value="" id="" data-bind="checked: active, attr: {id: name}, click: $root.updateLayers">
-        <label for="" data-bind="text: name, attr: {for: name}"></label><br />
-      </div>
-      <div class="list-box" data-bind="foreach: map.layers">
-        <h4 data-bind="visible: active(), text: name"></h4>
-        <ul data-bind="visible: active(), foreach: markers.sort(function(l,r){
-          return l.name() > r.name() ? 1:-1;
-        })">
-            <li data-bind="visible: active(), click: $root.toggleMarker, text: name, css: { 'selected-marker': selected() }"></li>
+      <div class="collapse navbar-collapse" id="myNavbar">
+        <ul class="nav navbar-nav navbar-right">
+          <li class="dropdown">
+            <a class="dropdown-toggle" href="#" data-toggle="dropdown"><i class="glyphicon glyphicon-filter"></i></a>
+            <div class="dropdown-menu">
+              <!-- Filter poi by type form -->
+              <fieldset data-bind="foreach: map.layers">
+                <div class="checkbox">
+                  <label>
+                    <input type="checkbox" value="" data-bind="checked: active, click: $root.updateLayers">
+                    <span data-bind="text: name"></span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+          </li>
+          <li class="dropdown">
+            <a class="dropdown-toggle" href="#" data-toggle="dropdown">Change location</a>
+            <div class="dropdown-menu">
+              <!-- Change location form -->
+              <form data-bind="submit: loadLocation">
+                <div class="form-group">
+                  <label for="street">Street <span class="text-muted">(optional)</span></label>
+                  <input type="text" class="form-control" id="street" name="street">
+                </div>
+                <div class="form-group">
+                  <label for="city">City</label>
+                  <input type="text" class="form-control" id="city" name="city" required="required" data-bind="value: map.address.city">
+                </div>
+                <div class="form-group">
+                  <label for="country">Country</label>
+                  <input type="text" class="form-control" id="country" name="country" required="required" data-bind="value: map.address.country">
+                </div>
+                <div class="form-group">
+                  <label for="postalcode">Postal code <span class="text-muted">(optional)</span></label>
+                  <input type="text" class="form-control" id="postalcode" name="postalcode">
+                </div>
+                <button class="btn btn-default" type="submit">Change</button>
+              </form>
+            </div>
+          </li>
         </ul>
+        <!-- Filter poi by name form -->
+        <form class="navbar-form navbar-right" data-bind="submit: searchMarkers">
+          <div class="input-group">
+            <input class="form-control" type="text" name="searchPhrase" placeholder="Search">
+            <div class="input-group-btn">
+              <button class="btn btn-default" type="submit">
+                <i class="glyphicon glyphicon-search"></i>
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
+  </nav>
+  <div class="app-box">
+    <button class="side-menu-button" data-bind="click: toggleSidebar, visible: !sideBar()"><i class="glyphicon glyphicon-triangle-right"></i></button>
+    <!--  Side panel with poi lists -->
+    <div class="panel panel-default side-menu" data-bind="visible: sideBar">
+      <div class="panel-heading clearfix">
+        <h4 class="pull-left marginless">
+          <address class="marginless">
+            <strong>
+              <span data-bind="if: map.address.street" ><span data-bind="text: map.address.street()"></span><br></span>
+              <span data-bind="text: map.address.city()"></span><br>
+              <small data-bind="text: map.address.country()"></small>
+            </strong>
+          </address>
+        </h4>
+        <div class="pull-right margin-left">
+          <a href="#"><i class="glyphicon glyphicon-remove" data-bind="click: toggleSidebar"></i></a>
+        </div>
+      </div>
+      <div class="side-menu-body" data-bind="foreach: map.layers">
+        <h4 class="list-group-heading" data-bind="visible: active()">
+          <a data-bind="attr: { href: '#' + name() + '-list' }, click: $root.toggleList" data-toggle="collapse" href="">
+            <strong><span data-bind="text: info"></span></strong>
+            <span data-bind="css: {'dropup': !collapsed()}"><span class="caret"></span></span>
+          </a>
+        </h4>
+        <div data-bind="visible: active(), attr: { id: name() + '-list' }, foreach: markers.sort(function(l,r){
+          return l.name() > r.name() ? 1:-1;
+        })" id="" class="list-group borderless collapse">
+          <button class="list-group-item" data-bind="visible: active(), click: $root.toggleMarker, text: name, css: { 'active': selected() }"></button>
+        </div>
+      </div>
+    </div>
+    <!-- Map -->
     <div id="myLocation"></div>
   </div>
   <script type="text/javascript" src="js/app-leaflet.js"></script>
+  <script type="text/javascript" src="js/libs/bootstrap.min.js"></script>
 </body>
 </html>

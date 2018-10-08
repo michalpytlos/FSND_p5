@@ -8,20 +8,81 @@ html, body {
  padding: 0;
 }
 
+/* Outer container for the app */
 .app-box {
   display: flex;
   width: 100%;
+  position: relative;
 }
 
-.info-box {
-  width: 20%;
-}
 
+/*  Map container */
 #myLocation {
-  width: 80%;
-  height: 800px;
+  flex: 1;
+  height: calc(100vh - 52px);
 }
 
+
+/* Side menu */
+.side-menu {
+  height: calc(100vh - 52px);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel {
+  margin: 0;
+}
+
+.side-menu-body {
+  overflow-y: scroll;
+  flex: 1;
+}
+
+.list-group-heading {
+  padding: 10px 15px 0px 15px;
+}
+
+.list-group-heading a {
+  color: #555;
+}
+
+.list-group-heading a:link, .list-group-heading a:hover {
+  text-decoration: none;
+}
+
+button.list-group-item {
+  padding: 5px 15px;
+  border: none;
+}
+
+.side-menu-button {
+  opacity: 0.8;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  height: 100%;
+}
+
+
+/* Navigation bar */
+.dropdown-menu {
+  padding: 15px;
+  padding-bottom: 5px;
+  width: 200px;
+}
+
+.navbar {
+  margin: 0;
+}
+
+.checkbox {
+  margin-top: 0;
+}
+
+
+/* Map markers */
 .std-marker-icon {
   color: rgb(66, 134, 244);
 }
@@ -30,6 +91,20 @@ html, body {
   color: red;
 }
 
-.selected-marker {
-  color: red
-};
+
+/*  Functional */
+.borderless {
+    border: none;
+}
+
+.marginless {
+  margin: 0;
+}
+
+.float-right {
+  float: right;
+}
+
+.margin-left {
+  margin-left: 15px;
+}
