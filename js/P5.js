@@ -21,8 +21,14 @@ P5.defLocation = {
 
 
 /**
-* Calculate destination point given distance and bearing from start point
+* Create destination point given start point, distance and bearing.
 * Mathematical formulation after http://www.movable-type.co.uk/scripts/latlong.html
+*
+* @constructor
+* @param {number} lat1D - Latitude of start point in degrees.
+* @param {number} lon1D - Longitude of start point in degrees.
+* @param {number} dist - Distance in metres.
+* @param {number} bearingD - Bearing in degrees.
 */
 P5.DestPoint = function (lat1D, lon1D, dist, bearingD) {
 	// Convert bearing and coordinates of start point to radians
@@ -49,101 +55,137 @@ P5.DestPoint = function (lat1D, lon1D, dist, bearingD) {
 /**  Container holding properties and methods required to fetch and store poi data from osm */
 P5.poiData = {
 	data: {},
-	dataCalls: [],
-	setBbox: function (latC, lonC) {
-		// Calculate coords of SW and NE corners of bbox given its center point and
-		// construct bboxStr ready to be used in query to overpass api
-		var a = 1500; // bbox width and height in m
-		var halfDiag = Math.sqrt(2) * a / 2; // distance from centre to corner of bbox
-		var cornerSW = new P5.DestPoint (latC, lonC, halfDiag, 225);
-		var cornerNE = new P5.DestPoint (latC, lonC, halfDiag, 45);
-		this.bboxStr = `(${cornerSW.lat},${cornerSW.lon},${cornerNE.lat},${cornerNE.lon})`;
-	},
-	addAllData: function () {
-		// Fetch osm poi data on all poi types defined in poiTypes
-		var that = this;
-		Object.keys(P5.poiTypes).forEach(function(poiKey){
-			for (i=0; i<P5.poiTypes[poiKey].length; i++) {
-				// Push jqXHR (deferred) returned by $.ajax() to dataCalls for further use with $.when()
-				that.dataCalls.push(that.addData(poiKey, P5.poiTypes[poiKey][i]));
-			}
-		});
-	},
-	addData: function (poiKey, poiValue) {
-		// Fetch poi data on one poi type from osm
-		var nodeStr = `node[${poiKey}=${poiValue}]`;
-		var that = this;
-		return $.ajax({
-			url: 'https://www.overpass-api.de/api/interpreter' +
-						'?data=[out:json][timeout:60];' +
-						nodeStr + this.bboxStr + ';' +
-						'out%20meta;',
-			method: 'GET',
-			dataType: 'json',
-			success: function(osmPoiData) {
-				that.purgeOsmPoiData(osmPoiData);
-				that.data[poiValue] = osmPoiData;
-				that.saveData();
-				console.log('Data on ' + poiValue + ' saved to localStorage');
-			},
-			error: function(){
-				window.alert('Unsuccessful request to Overpass API (' + poiValue + '). Data could not be downloaded.');
-			},
-		});
-	},
-	saveData: function () {
-		// Save poi data to localStorage
-		var that = this;
-		localStorage.setItem('P5_poiData', JSON.stringify(that.data));
-	},
-	geocodeLoc: function(queryParams){
-		// Geocode location
-		queryParams['format'] = 'json';
-		queryParams['addressdetails'] = 1;
-		return $.ajax({
-			url: 'https://nominatim.openstreetmap.org/search',
-			method: 'GET',
-			data: queryParams,
-			dataType: 'json',
-			success: function(data) {
-				if (data.length > 0) {
-					localStorage.setItem('P5_location', JSON.stringify(data[0]));
-					console.log('Location metadata saved to localStorage');
-					P5.poiData.setBbox(data[0].lat, data[0].lon);
-					P5.poiData.addAllData();
-					P5.map.init();
-				} else {
-					window.alert('Location not found! Please check the address and try again.');
-				};
-			},
-			error: function(){
-				window.alert('Unsuccessful request to Nominatim. The location could not be geocoded.');
-			},
-		});
-	},
-	buildAddress: function(addressForm) {
-		if (addressForm === null) {
-			return P5.defLocation
-		} else {
-			var addressFields = ["country", "city", "street", "postalcode"]; // same as in html
-			var address = {};
-			for (i = 0; i < addressFields.length; ++i) {
-				if (addressForm.elements.namedItem(addressFields[i]).value.length > 0) {
-					address[addressFields[i]] = addressForm.elements.namedItem(addressFields[i]).value;
-				}
-			};
-			return address
+	dataCalls: []
+}
+
+
+/**
+* Construct bboxStr ready to be used in query to overpass api.
+*
+* @param {number} latC - Latitude of the bbox centre point.
+* @param {number} lonC - Longitude of the bbox centre point.
+*/
+P5.poiData.setBbox = function (latC, lonC) {
+	var a = 1500; // bbox width and height in m
+	var halfDiag = Math.sqrt(2) * a / 2; // distance from centre to corner of bbox
+	var cornerSW = new P5.DestPoint (latC, lonC, halfDiag, 225); // SW corner of bbox
+	var cornerNE = new P5.DestPoint (latC, lonC, halfDiag, 45); // NE corner of bbox
+	this.bboxStr = `(${cornerSW.lat},${cornerSW.lon},${cornerNE.lat},${cornerNE.lon})`;
+}
+
+
+/** Fetch osm poi data on all poi types defined in P5.poiTypes */
+P5.poiData.addAllData = function () {
+	var that = this;
+	Object.keys(P5.poiTypes).forEach(function(poiKey){
+		for (i=0; i<P5.poiTypes[poiKey].length; i++) {
+			// Push jqXHR (deferred) returned by $.ajax() to dataCalls for further use with $.when()
+			that.dataCalls.push(that.addData(poiKey, P5.poiTypes[poiKey][i]));
 		}
-	},
-	purgeOsmPoiData: function(osmPoiData) {
-		// Remove all poi without a name from the data
-		for (i = osmPoiData.elements.length -1; i >= 0; --i) {
-			if (typeof osmPoiData.elements[i].tags.name === 'undefined' || !osmPoiData.elements[i].tags.name){
-				osmPoiData.elements.splice(i, 1);
+	});
+}
+
+
+/**
+* Fetch poi data on one poi type from osm
+*
+* @param {string} poiKey - poi primary type e.g. amenity
+* @param {string} poiValue - poi type e.g. pub
+*/
+P5.poiData.addData = function (poiKey, poiValue) {
+	//
+	var nodeStr = `node[${poiKey}=${poiValue}]`;
+	var that = this;
+	return $.ajax({
+		url: 'https://www.overpass-api.de/api/interpreter' +
+					'?data=[out:json][timeout:60];' +
+					nodeStr + this.bboxStr + ';' +
+					'out%20meta;',
+		method: 'GET',
+		dataType: 'json',
+		success: function(osmPoiData) {
+			that.purgeOsmPoiData(osmPoiData);
+			that.data[poiValue] = osmPoiData;
+			that.saveData();
+			console.log('Data on ' + poiValue + ' saved to localStorage');
+		},
+		error: function(){
+			window.alert('Unsuccessful request to Overpass API (' + poiValue + '). Data could not be downloaded.');
+		},
+	});
+}
+
+
+/** Save poi data to localStorage */
+P5.poiData.saveData = function () {
+	var that = this;
+	localStorage.setItem('P5_poiData', JSON.stringify(that.data));
+}
+
+
+/**
+* Geocode location.
+*
+* @param {object} queryParams - Address of location in format ready to be used in query to Nominatim.
+*/
+P5.poiData.geocodeLoc = function(queryParams){
+	queryParams['format'] = 'json';
+	queryParams['addressdetails'] = 1;
+	return $.ajax({
+		url: 'https://nominatim.openstreetmap.org/search',
+		method: 'GET',
+		data: queryParams,
+		dataType: 'json',
+		success: function(data) {
+			if (data.length > 0) {
+				localStorage.setItem('P5_location', JSON.stringify(data[0]));
+				console.log('Location metadata saved to localStorage');
+				P5.poiData.setBbox(data[0].lat, data[0].lon);
+				P5.poiData.addAllData();
+				P5.map.init();
+			} else {
+				window.alert('Location not found! Please check the address and try again.');
+			};
+		},
+		error: function(){
+			window.alert('Unsuccessful request to Nominatim. The location could not be geocoded.');
+		},
+	});
+}
+
+/**
+* Build address object to be used in query to Nominatim.
+*
+* @param {object} addressForm - HTML form with address data.
+* @returns {object} Address object.
+*/
+P5.poiData.buildAddress = function(addressForm) {
+	if (addressForm === null) {
+		return P5.defLocation
+	} else {
+		var addressFields = ["country", "city", "street", "postalcode"]; // same as in html
+		var address = {};
+		for (i = 0; i < addressFields.length; ++i) {
+			if (addressForm.elements.namedItem(addressFields[i]).value.length > 0) {
+				address[addressFields[i]] = addressForm.elements.namedItem(addressFields[i]).value;
 			}
+		};
+		return address
+	}
+}
+
+/**
+* Remove all poi without a name from the data.
+*
+* @param {object} osmPoiData - poi data from osm.
+*/
+P5.poiData.purgeOsmPoiData = function(osmPoiData) {
+	for (i = osmPoiData.elements.length -1; i >= 0; --i) {
+		if (typeof osmPoiData.elements[i].tags.name === 'undefined' || !osmPoiData.elements[i].tags.name){
+			osmPoiData.elements.splice(i, 1);
 		}
 	}
-};
+}
 
 
 /** Container holding all map layers, leaflet map object and methods relevant to them */
@@ -174,18 +216,17 @@ P5.map = {
 };
 
 
-/** Method for map. Initialize the map. */
+/** Initialize the map. */
 P5.map.init = function () {
 	that = this;
 
-	// Create the tile layer
+	// Create tile layer
 	var osmUrl='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 	var osmAttrib='Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors';
 	var osm = new L.TileLayer(osmUrl, {minZoom: 14, maxZoom: 18, attribution: osmAttrib});
-
+	// Load location data from localStorage
 	var location = JSON.parse(localStorage.P5_location);
-
-	//Save address
+	// Save address
 	if (typeof location.address.road !== 'undefined' || location.address.road) {
 		that.address.street(location.address.road);
 	} else {
@@ -193,29 +234,28 @@ P5.map.init = function () {
 	};
 	that.address.country(location.address.country);
 	that.address.city(location.address.city);
-
 	// Set starting location
 	that.leafMap.setView(new L.LatLng(location.lat, location.lon),16);
+	// Add tile layer to map
 	that.leafMap.addLayer(osm);
-
+	// Position zoom controller on map
 	that.leafMap.zoomControl.setPosition('bottomright');
-
-	// Reset layers
+	// Reset layers array
 	that.layers([]);
-
 	// Add poi data to map and to layers
 	that.loadData();
 }
 
 
-/** Method for map.  Load poi data to leaflet map and map.layers. Fetch data from osm if no poi data. */
+/** Add poi data to leaflet map and map.layers. */
 P5.map.loadData = function () {
 	that = this;
 	// If the data is being downloaded, wait for all the ajax calls to resolve before proceeding
 	$.when.apply($, P5.poiData.dataCalls).then(function(){
+		console.log('hello');
 		// Load poi data from localStorage
 		var appPoiData = JSON.parse(localStorage.P5_poiData);
-		// Load poi data to map and to map.layers
+		// Add poi data to map and to map.layers
 		Object.keys(appPoiData).forEach(function(poiType){
 			// Create new layer
 			var layer = new P5.Layer(poiType);
@@ -230,14 +270,16 @@ P5.map.loadData = function () {
 }
 
 
-/** Method for map. Update currently selected marker. */
+/**
+* Update container holding marker marked as selected and inform marker that it has been selected.
+* @param {object} marker - marker object selected by user.
+*/
 P5.map.toggleMarker = function(marker) {
 	// Save previously selected marker and unselect it
 	unselMarker = this.selectedMarker;
 	this.unselectMarker();
-
-	if (unselMarker !== marker) {
-		// Select passed marker
+	// Select passed marker if new
+	if (marker !== unselMarker) {
 		marker.leafMarker.setIcon(P5.map.icons.selIcon);
 		marker.selected(true);
 		this.selectedMarker = marker;
@@ -245,7 +287,7 @@ P5.map.toggleMarker = function(marker) {
 };
 
 
-/** Method for map. Unselect currently selected marker. */
+/** Unselect currently selected marker. */
 P5.map.unselectMarker = function () {
 	if (this.selectedMarker !== null) {
 		marker = this.selectedMarker;
@@ -256,10 +298,10 @@ P5.map.unselectMarker = function () {
 };
 
 
-/** Method for map.
+/**
 * Update leaflet layers:
-* active layers are added to the map (if not present)
-* non-active layers are removed from the map (if present)
+* active layers are added to the map (if not present).
+* non-active layers are removed from the map (if present).
 */
 P5.map.updateLayersMap = function () {
 	that = this;
@@ -273,7 +315,7 @@ P5.map.updateLayersMap = function () {
 }
 
 
-/** Method for map.
+/**
 * Update leaflet markers:
 * markers not satysfying the search criterion are removed from the map and marked as non-active (if present)
 * markers satysfying the search criterion are added to the map and marked as active (if not present)
@@ -301,8 +343,14 @@ P5.map.updateMarkers = function (searchPhrase) {
 	});
 }
 
-
-/** Marker constructor */
+/**
+* Create marker.
+*
+* @constructor
+* @param {object} data - Container with information about the marker obtained from osm.
+* @param {string} poiType - Name of the layer the marker belongs to.
+* @param {string} markerId - Id of the marker.
+*/
 P5.Marker = function (data, poiType, markerId){
 	this.name = ko.observable(data.tags.name);
 	this.active = ko.observable(true);
@@ -314,8 +362,12 @@ P5.Marker = function (data, poiType, markerId){
 	this.leafMarker.bindPopup(this.popupContent).openPopup();
 }
 
-
-/** Layer constructor */
+/**
+* Create layer.
+*
+* @constructor
+* @param {string} name - Name of the layer.
+*/
 P5.Layer = function(name) {
 	this.name = ko.observable(name);
 	this.active = ko.observable(true);
@@ -334,13 +386,17 @@ P5.Layer = function(name) {
 }
 
 
-/** Method for Layer objects. Create and add to this layer all markers of the appropriate type  */
+/**
+* Create and then add to this layer all markers of the appropriate type.
+* @param {object} data - Container with poi data from osm.
+*/
 P5.Layer.prototype.addMarkers = function(data){
 	for (i = 0; i < data.length; i++) {
 		// create new poi marker
 		markerId = this.name() + i;
 		var marker = new P5.Marker(data[i], this.name(), markerId);
 		// add leaflet marker to leaflet layerGroup
+		// attach toggleMarker() to leaflet marker so click on marker = click on the corresponding poi list item
 		marker.leafMarker.addTo(this.leafLayer).on('click', function(){
 			marker = P5.map.markerDict[this.idParent]; // this = clicked leafMarker
 			P5.map.toggleMarker(marker);
@@ -352,32 +408,41 @@ P5.Layer.prototype.addMarkers = function(data){
 	};
 }
 
-
-/** knockout.js viewModel constructor */
+/**
+* Create knockout.js viewModel.
+*
+* @constructor
+*/
 P5.ViewModel = function() {
 	self = this;
 	this.map = P5.map;
-	this.sideBar = ko.observable(true);
+	this.sideBar = ko.observable(true); // visibility flag for the side bar
+	// Update leaflet map layers
 	this.updateLayers = function() {
 		P5.map.updateLayersMap();
 		return true; // need to return true for checked binding to work
 	};
+	// Filter poi by name
 	this.searchMarkers = function (formElement) {
 		P5.map.unselectMarker();
 		P5.map.updateMarkers(formElement.elements.namedItem("searchPhrase").value);
 	};
+	// Toggle visibility of poi list for the given poi type in the side menu
 	this.toggleList = function (layer) {
 		layer.collapsed(!layer.collapsed());
 	};
+	// Toggle visibility of the side bar
 	this.toggleSidebar = function () {
 		self.sideBar(!self.sideBar());
 		console.log(self.sideBar());
 	};
+	// Update container holding marker marked as selected and inform marker that it has been selected
 	this.toggleMarker = function(marker) {
 		P5.map.toggleMarker(marker);
 		// toggle map popup
 		marker.leafMarker.togglePopup();
 	};
+	// Initialize the app with location and poi data
 	this.loadLocation = function(addressForm = null) {
 		if (addressForm !== null || typeof localStorage.P5_poiData === 'undefined') {
 			// Load new location
@@ -392,7 +457,7 @@ P5.ViewModel = function() {
 	}
 };
 
-
+// Create viewModel and activate knockout
 P5.viewModel = new P5.ViewModel();
 P5.viewModel.loadLocation();
 ko.applyBindings(P5.viewModel);
