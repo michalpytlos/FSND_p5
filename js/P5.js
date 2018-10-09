@@ -77,6 +77,7 @@ P5.poiData.setBbox = function (latC, lonC) {
 /** Fetch osm poi data on all poi types defined in P5.poiTypes */
 P5.poiData.addAllData = function () {
 	var that = this;
+	that.dataCalls = [];
 	Object.keys(P5.poiTypes).forEach(function(poiKey){
 		for (i=0; i<P5.poiTypes[poiKey].length; i++) {
 			// Push jqXHR (deferred) returned by $.ajax() to dataCalls for further use with $.when()
@@ -98,11 +99,12 @@ P5.poiData.addData = function (poiKey, poiValue) {
 	var that = this;
 	return $.ajax({
 		url: 'https://www.overpass-api.de/api/interpreter' +
-					'?data=[out:json][timeout:60];' +
+					'?data=[out:json][timeout:30];' +
 					nodeStr + this.bboxStr + ';' +
 					'out%20meta;',
 		method: 'GET',
 		dataType: 'json',
+		timeout: 30000,
 		success: function(osmPoiData) {
 			that.purgeOsmPoiData(osmPoiData);
 			that.data[poiValue] = osmPoiData;
@@ -110,9 +112,11 @@ P5.poiData.addData = function (poiKey, poiValue) {
 			console.log('Data on ' + poiValue + ' saved to localStorage');
 		},
 		error: function(){
-			window.alert('Unsuccessful request to Overpass API (' + poiValue + '). Data could not be downloaded.');
+			window.alert('Unsuccessful request to Overpass API (' + poiValue + ').' +
+			'\nData could not be downloaded.\n\nPlease try changing the location.');
 		},
 	});
+	return false;
 }
 
 
@@ -136,6 +140,7 @@ P5.poiData.geocodeLoc = function(queryParams){
 		method: 'GET',
 		data: queryParams,
 		dataType: 'json',
+		timeout: 30000,
 		success: function(data) {
 			if (data.length > 0) {
 				localStorage.setItem('P5_location', JSON.stringify(data[0]));
@@ -252,7 +257,6 @@ P5.map.loadData = function () {
 	that = this;
 	// If the data is being downloaded, wait for all the ajax calls to resolve before proceeding
 	$.when.apply($, P5.poiData.dataCalls).then(function(){
-		console.log('hello');
 		// Load poi data from localStorage
 		var appPoiData = JSON.parse(localStorage.P5_poiData);
 		// Add poi data to map and to map.layers
