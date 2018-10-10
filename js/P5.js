@@ -1,23 +1,5 @@
 /** Container for the app */
-var P5 = {};
-
-
-/**
-* Pre-defined poi types available in the app.
-* The types conform to the osm format.
-* Reference: list of all osm keys for map features: https://wiki.openstreetmap.org/wiki/Map_Features
-*/
-P5.poiTypes = {
-	amenity: ["restaurant", "cafe", "pub", "fast_food"],
-};
-
-
-/** Default location */
-P5.defLocation = {
-	country: 'United Kingdom',
-	city: 'London',
-	street: '1 Oxford Street'
-};
+var p5 = {};
 
 
 /**
@@ -30,7 +12,7 @@ P5.defLocation = {
 * @param {number} dist - Distance in metres.
 * @param {number} bearingD - Bearing in degrees.
 */
-P5.DestPoint = function (lat1D, lon1D, dist, bearingD) {
+p5.DestPoint = function (lat1D, lon1D, dist, bearingD) {
 	// Convert bearing and coordinates of start point to radians
 	var lat1 = lat1D * (Math.PI / 180);
 	var lon1 = lon1D * (Math.PI / 180);
@@ -53,7 +35,7 @@ P5.DestPoint = function (lat1D, lon1D, dist, bearingD) {
 
 
 /**  Container holding properties and methods required to fetch and store poi data from osm */
-P5.poiData = {
+p5.poiData = {
 	data: {},
 	dataCalls: []
 }
@@ -65,23 +47,23 @@ P5.poiData = {
 * @param {number} latC - Latitude of the bbox centre point.
 * @param {number} lonC - Longitude of the bbox centre point.
 */
-P5.poiData.setBbox = function (latC, lonC) {
+p5.poiData.setBbox = function (latC, lonC) {
 	var a = 1500; // bbox width and height in m
 	var halfDiag = Math.sqrt(2) * a / 2; // distance from centre to corner of bbox
-	var cornerSW = new P5.DestPoint (latC, lonC, halfDiag, 225); // SW corner of bbox
-	var cornerNE = new P5.DestPoint (latC, lonC, halfDiag, 45); // NE corner of bbox
+	var cornerSW = new p5.DestPoint (latC, lonC, halfDiag, 225); // SW corner of bbox
+	var cornerNE = new p5.DestPoint (latC, lonC, halfDiag, 45); // NE corner of bbox
 	this.bboxStr = `(${cornerSW.lat},${cornerSW.lon},${cornerNE.lat},${cornerNE.lon})`;
 }
 
 
-/** Fetch osm poi data on all poi types defined in P5.poiTypes */
-P5.poiData.addAllData = function () {
+/** Fetch osm poi data on all poi types defined in POI_TYPES */
+p5.poiData.addAllData = function () {
 	var that = this;
 	that.dataCalls = [];
-	Object.keys(P5.poiTypes).forEach(function(poiKey){
-		for (i=0; i<P5.poiTypes[poiKey].length; i++) {
+	Object.keys(POI_TYPES).forEach(function(poiKey){
+		for (i=0; i<POI_TYPES[poiKey].length; i++) {
 			// Push jqXHR (deferred) returned by $.ajax() to dataCalls for further use with $.when()
-			that.dataCalls.push(that.addData(poiKey, P5.poiTypes[poiKey][i]));
+			that.dataCalls.push(that.addData(poiKey, POI_TYPES[poiKey][i]));
 		}
 	});
 }
@@ -93,7 +75,7 @@ P5.poiData.addAllData = function () {
 * @param {string} poiKey - poi primary type e.g. amenity
 * @param {string} poiValue - poi type e.g. pub
 */
-P5.poiData.addData = function (poiKey, poiValue) {
+p5.poiData.addData = function (poiKey, poiValue) {
 	//
 	var nodeStr = `node[${poiKey}=${poiValue}]`;
 	var that = this;
@@ -121,9 +103,9 @@ P5.poiData.addData = function (poiKey, poiValue) {
 
 
 /** Save poi data to localStorage */
-P5.poiData.saveData = function () {
+p5.poiData.saveData = function () {
 	var that = this;
-	localStorage.setItem('P5_poiData', JSON.stringify(that.data));
+	localStorage.setItem('p5_poiData', JSON.stringify(that.data));
 }
 
 
@@ -132,7 +114,7 @@ P5.poiData.saveData = function () {
 *
 * @param {object} queryParams - Address of location in format ready to be used in query to Nominatim.
 */
-P5.poiData.geocodeLoc = function(queryParams){
+p5.poiData.geocodeLoc = function(queryParams){
 	queryParams['format'] = 'json';
 	queryParams['addressdetails'] = 1;
 	return $.ajax({
@@ -143,11 +125,11 @@ P5.poiData.geocodeLoc = function(queryParams){
 		timeout: 30000,
 		success: function(data) {
 			if (data.length > 0) {
-				localStorage.setItem('P5_location', JSON.stringify(data[0]));
+				localStorage.setItem('p5_location', JSON.stringify(data[0]));
 				console.log('Location metadata saved to localStorage');
-				P5.poiData.setBbox(data[0].lat, data[0].lon);
-				P5.poiData.addAllData();
-				P5.map.init();
+				p5.poiData.setBbox(data[0].lat, data[0].lon);
+				p5.poiData.addAllData();
+				p5.map.init();
 			} else {
 				window.alert('Location not found! Please check the address and try again.');
 			};
@@ -164,9 +146,9 @@ P5.poiData.geocodeLoc = function(queryParams){
 * @param {object} addressForm - HTML form with address data.
 * @returns {object} Address object.
 */
-P5.poiData.buildAddress = function(addressForm) {
+p5.poiData.buildAddress = function(addressForm) {
 	if (addressForm === null) {
-		return P5.defLocation
+		return DEFAULT_LOCATION
 	} else {
 		var addressFields = ["country", "city", "street", "postalcode"]; // same as in html
 		var address = {};
@@ -184,7 +166,7 @@ P5.poiData.buildAddress = function(addressForm) {
 *
 * @param {object} osmPoiData - poi data from osm.
 */
-P5.poiData.purgeOsmPoiData = function(osmPoiData) {
+p5.poiData.purgeOsmPoiData = function(osmPoiData) {
 	for (i = osmPoiData.elements.length -1; i >= 0; --i) {
 		if (typeof osmPoiData.elements[i].tags.name === 'undefined' || !osmPoiData.elements[i].tags.name){
 			osmPoiData.elements.splice(i, 1);
@@ -194,7 +176,7 @@ P5.poiData.purgeOsmPoiData = function(osmPoiData) {
 
 
 /** Container holding all map layers, leaflet map object and methods relevant to them */
-P5.map = {
+p5.map = {
 	address: {
 		country: ko.observable(null),
 		city: ko.observable(null),
@@ -222,7 +204,7 @@ P5.map = {
 
 
 /** Initialize the map. */
-P5.map.init = function () {
+p5.map.init = function () {
 	that = this;
 
 	// Create tile layer
@@ -230,7 +212,7 @@ P5.map.init = function () {
 	var osmAttrib='Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors';
 	var osm = new L.TileLayer(osmUrl, {minZoom: 14, maxZoom: 18, attribution: osmAttrib});
 	// Load location data from localStorage
-	var location = JSON.parse(localStorage.P5_location);
+	var location = JSON.parse(localStorage.p5_location);
 	// Save address
 	if (typeof location.address.road !== 'undefined' || location.address.road) {
 		that.address.street(location.address.road);
@@ -253,22 +235,22 @@ P5.map.init = function () {
 
 
 /** Add poi data to leaflet map and map.layers. */
-P5.map.loadData = function () {
+p5.map.loadData = function () {
 	that = this;
 	// If the data is being downloaded, wait for all the ajax calls to resolve before proceeding
-	$.when.apply($, P5.poiData.dataCalls).then(function(){
+	$.when.apply($, p5.poiData.dataCalls).then(function(){
 		// Load poi data from localStorage
-		var appPoiData = JSON.parse(localStorage.P5_poiData);
+		var appPoiData = JSON.parse(localStorage.p5_poiData);
 		// Add poi data to map and to map.layers
 		Object.keys(appPoiData).forEach(function(poiType){
 			// Create new layer
-			var layer = new P5.Layer(poiType);
+			var layer = new p5.Layer(poiType);
 			// Create and add to layer all markers of the corresponding type
 			layer.addMarkers(appPoiData[poiType].elements);
 			// Add layer to map.layers
 			that.layers.push(layer);
 			// Add leaflet layer to map
-			layer.leafLayer.addTo(P5.map.leafMap);
+			layer.leafLayer.addTo(p5.map.leafMap);
 		});
 	});
 }
@@ -278,13 +260,13 @@ P5.map.loadData = function () {
 * Update container holding marker marked as selected and inform marker that it has been selected.
 * @param {object} marker - marker object selected by user.
 */
-P5.map.toggleMarker = function(marker) {
+p5.map.toggleMarker = function(marker) {
 	// Save previously selected marker and unselect it
 	unselMarker = this.selectedMarker;
 	this.unselectMarker();
 	// Select passed marker if new
 	if (marker !== unselMarker) {
-		marker.leafMarker.setIcon(P5.map.icons.selIcon);
+		marker.leafMarker.setIcon(p5.map.icons.selIcon);
 		marker.selected(true);
 		this.selectedMarker = marker;
 	};
@@ -292,10 +274,10 @@ P5.map.toggleMarker = function(marker) {
 
 
 /** Unselect currently selected marker. */
-P5.map.unselectMarker = function () {
+p5.map.unselectMarker = function () {
 	if (this.selectedMarker !== null) {
 		marker = this.selectedMarker;
-		marker.leafMarker.setIcon(P5.map.icons.stdIcon);
+		marker.leafMarker.setIcon(p5.map.icons.stdIcon);
 		marker.selected(false);
 		this.selectedMarker = null;
 	};
@@ -307,7 +289,7 @@ P5.map.unselectMarker = function () {
 * active layers are added to the map (if not present).
 * non-active layers are removed from the map (if present).
 */
-P5.map.updateLayersMap = function () {
+p5.map.updateLayersMap = function () {
 	that = this;
 	that.layers().forEach(function(layer){
 		if (!layer.active() && that.leafMap.hasLayer(layer.leafLayer)){
@@ -324,7 +306,7 @@ P5.map.updateLayersMap = function () {
 * markers not satysfying the search criterion are removed from the map and marked as non-active (if present)
 * markers satysfying the search criterion are added to the map and marked as active (if not present)
 */
-P5.map.updateMarkers = function (searchPhrase) {
+p5.map.updateMarkers = function (searchPhrase) {
 	that = this;
 	that.layers().forEach(function(layer){
 			layer.markers().forEach(function(marker){
@@ -355,11 +337,11 @@ P5.map.updateMarkers = function (searchPhrase) {
 * @param {string} poiType - Name of the layer the marker belongs to.
 * @param {string} markerId - Id of the marker.
 */
-P5.Marker = function (data, poiType, markerId){
+p5.Marker = function (data, poiType, markerId){
 	this.name = ko.observable(data.tags.name);
 	this.active = ko.observable(true);
 	this.selected = ko.observable(false);
-	this.leafMarker = L.marker([data.lat, data.lon], {icon: P5.map.icons.stdIcon});
+	this.leafMarker = L.marker([data.lat, data.lon], {icon: p5.map.icons.stdIcon});
 	this.leafMarker.idParent = markerId;
 	this.popupContent = `<strong>${data.tags.name}</strong> <br />${poiType}`;
 	// Bind popup to marker
@@ -372,7 +354,7 @@ P5.Marker = function (data, poiType, markerId){
 * @constructor
 * @param {string} name - Name of the layer.
 */
-P5.Layer = function(name) {
+p5.Layer = function(name) {
 	this.name = ko.observable(name);
 	this.active = ko.observable(true);
 	this.collapsed = ko.observable(true);
@@ -394,21 +376,21 @@ P5.Layer = function(name) {
 * Create and then add to this layer all markers of the appropriate type.
 * @param {object} data - Container with poi data from osm.
 */
-P5.Layer.prototype.addMarkers = function(data){
+p5.Layer.prototype.addMarkers = function(data){
 	for (i = 0; i < data.length; i++) {
 		// create new poi marker
 		markerId = this.name() + i;
-		var marker = new P5.Marker(data[i], this.name(), markerId);
+		var marker = new p5.Marker(data[i], this.name(), markerId);
 		// add leaflet marker to leaflet layerGroup
 		// attach toggleMarker() to leaflet marker so click on marker = click on the corresponding poi list item
 		marker.leafMarker.addTo(this.leafLayer).on('click', function(){
-			marker = P5.map.markerDict[this.idParent]; // this = clicked leafMarker
-			P5.map.toggleMarker(marker);
+			marker = p5.map.markerDict[this.idParent]; // this = clicked leafMarker
+			p5.map.toggleMarker(marker);
 		});
 		// add marker to this layer
 		this.markers().push(marker);
 		// add marker to dictionary
-		P5.map.markerDict[markerId] = marker;
+		p5.map.markerDict[markerId] = marker;
 	};
 }
 
@@ -417,19 +399,19 @@ P5.Layer.prototype.addMarkers = function(data){
 *
 * @constructor
 */
-P5.ViewModel = function() {
+p5.ViewModel = function() {
 	self = this;
-	this.map = P5.map;
+	this.map = p5.map;
 	this.sideBar = ko.observable(true); // visibility flag for the side bar
 	// Update leaflet map layers
 	this.updateLayers = function() {
-		P5.map.updateLayersMap();
+		p5.map.updateLayersMap();
 		return true; // need to return true for checked binding to work
 	};
 	// Filter poi by name
 	this.searchMarkers = function (formElement) {
-		P5.map.unselectMarker();
-		P5.map.updateMarkers(formElement.elements.namedItem("searchPhrase").value);
+		p5.map.unselectMarker();
+		p5.map.updateMarkers(formElement.elements.namedItem("searchPhrase").value);
 	};
 	// Toggle visibility of poi list for the given poi type in the side menu
 	this.toggleList = function (layer) {
@@ -442,26 +424,26 @@ P5.ViewModel = function() {
 	};
 	// Update container holding marker marked as selected and inform marker that it has been selected
 	this.toggleMarker = function(marker) {
-		P5.map.toggleMarker(marker);
+		p5.map.toggleMarker(marker);
 		// toggle map popup
 		marker.leafMarker.togglePopup();
 	};
 	// Initialize the app with location and poi data
 	this.loadLocation = function(addressForm = null) {
-		if (addressForm !== null || typeof localStorage.P5_poiData === 'undefined') {
+		if (addressForm !== null || typeof localStorage.p5_poiData === 'undefined') {
 			// Load new location
 			// If addressForm === null, loads default location
-			// P5.map.init() is invoked by P5.poiData.geocodeLoc() on success
-			address = P5.poiData.buildAddress(addressForm);
-			P5.poiData.dataCalls.push(P5.poiData.geocodeLoc(address));
+			// p5.map.init() is invoked by p5.poiData.geocodeLoc() on success
+			address = p5.poiData.buildAddress(addressForm);
+			p5.poiData.dataCalls.push(p5.poiData.geocodeLoc(address));
 		} else {
 			// Load location saved in localStorage
-			P5.map.init();
+			p5.map.init();
 		}
 	}
 };
 
 // Create viewModel and activate knockout
-P5.viewModel = new P5.ViewModel();
-P5.viewModel.loadLocation();
-ko.applyBindings(P5.viewModel);
+p5.viewModel = new p5.ViewModel();
+p5.viewModel.loadLocation();
+ko.applyBindings(p5.viewModel);
