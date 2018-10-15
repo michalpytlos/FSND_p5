@@ -59,7 +59,6 @@ p5.poiData.setBbox = function (latC, lonC) {
 /** Fetch osm poi data on all poi types defined in POI_TYPES */
 p5.poiData.addAllData = function () {
 	var that = this;
-	that.dataCalls = [];
 	Object.keys(POI_TYPES).forEach(function(poiKey){
 		for (i=0; i<POI_TYPES[poiKey].length; i++) {
 			// Push jqXHR (deferred) returned by $.ajax() to dataCalls for further use with $.when()
@@ -96,6 +95,7 @@ p5.poiData.addData = function (poiKey, poiValue) {
 		error: function(){
 			window.alert('Unsuccessful request to Overpass API (' + poiValue + ').' +
 			'\nData could not be downloaded.\n\nPlease try changing the location.');
+			p5.viewModel.isLoadingLoc(false);
 		},
 	});
 	return false;
@@ -125,17 +125,26 @@ p5.poiData.geocodeLoc = function(queryParams){
 		timeout: 30000,
 		success: function(data) {
 			if (data.length > 0) {
+				// Save location to localStorage
 				localStorage.setItem('p5_location', JSON.stringify(data[0]));
 				console.log('Location metadata saved to localStorage');
+				// Clear old poi data
+				p5.poiData.data = {};
+				localStorage.removeItem('p5_poiData');
+				// Set bbox
 				p5.poiData.setBbox(data[0].lat, data[0].lon);
+				// Fetch poi data from osm
 				p5.poiData.addAllData();
+				// Initialize map
 				p5.map.init();
 			} else {
 				window.alert('Location not found! Please check the address and try again.');
+				p5.viewModel.isLoadingLoc(false);
 			};
 		},
 		error: function(){
 			window.alert('Unsuccessful request to Nominatim. The location could not be geocoded.');
+			p5.viewModel.isLoadingLoc(false);
 		},
 	});
 }
@@ -252,6 +261,7 @@ p5.map.loadData = function () {
 			// Add leaflet layer to map
 			layer.leafLayer.addTo(p5.map.leafMap);
 		});
+		p5.viewModel.isLoadingLoc(false);
 	});
 }
 
@@ -403,6 +413,7 @@ p5.ViewModel = function() {
 	self = this;
 	this.map = p5.map;
 	this.sideBar = ko.observable(true); // visibility flag for the side bar
+	this.isLoadingLoc = ko.observable(false), // flag for the location change button
 	// Update leaflet map layers
 	this.updateLayers = function() {
 		p5.map.updateLayersMap();
@@ -430,6 +441,11 @@ p5.ViewModel = function() {
 	};
 	// Initialize the app with location and poi data
 	this.loadLocation = function(addressForm = null) {
+		// Disable location change button
+		self.isLoadingLoc(true);
+		// Clear dataCalls
+		p5.poiData.dataCalls = [];
+		// Load location
 		if (addressForm !== null || typeof localStorage.p5_poiData === 'undefined') {
 			// Load new location
 			// If addressForm === null, loads default location
