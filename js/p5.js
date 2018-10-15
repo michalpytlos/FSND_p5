@@ -122,7 +122,7 @@ p5.poiData.geocodeLoc = function(queryParams){
 		method: 'GET',
 		data: queryParams,
 		dataType: 'json',
-		timeout: 30000,
+		timeout: 5000,
 		success: function(data) {
 			if (data.length > 0) {
 				// Save location to localStorage
@@ -413,16 +413,18 @@ p5.ViewModel = function() {
 	self = this;
 	this.map = p5.map;
 	this.sideBar = ko.observable(true); // visibility flag for the side bar
-	this.isLoadingLoc = ko.observable(false), // flag for the location change button
+	this.isLoadingLoc = ko.observable(false); // flag for the location change button
+	this.searchPhrase = ko.observable(""); // search phrase for poi filtering
+	// Filter poi by name
+	this.searchMarkers = ko.computed(function () {
+		searchPhrase = self.searchPhrase();
+		p5.map.unselectMarker();
+		p5.map.updateMarkers(searchPhrase);
+	});
 	// Update leaflet map layers
 	this.updateLayers = function() {
 		p5.map.updateLayersMap();
 		return true; // need to return true for checked binding to work
-	};
-	// Filter poi by name
-	this.searchMarkers = function (formElement) {
-		p5.map.unselectMarker();
-		p5.map.updateMarkers(formElement.elements.namedItem("searchPhrase").value);
 	};
 	// Toggle visibility of poi list for the given poi type in the side menu
 	this.toggleList = function (layer) {
@@ -431,7 +433,6 @@ p5.ViewModel = function() {
 	// Toggle visibility of the side bar
 	this.toggleSidebar = function () {
 		self.sideBar(!self.sideBar());
-		console.log(self.sideBar());
 	};
 	// Update container holding marker marked as selected and inform marker that it has been selected
 	this.toggleMarker = function(marker) {
