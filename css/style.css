@@ -17,7 +17,7 @@ html, body {
 
 
 /*  Map container */
-#myLocation {
+.map-canvas {
   flex: 1;
   height: calc(100vh - 52px);
 }
@@ -93,6 +93,20 @@ button.list-group-item {
 
 
 /*  Functional */
+.heading4 {
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 500;
+  color: inherit;
+}
+
+.heading4 small {
+  font-size: 75%;
+  font-weight: 400;
+  line-height: 1;
+  color: #777;
+}
+
 .borderless {
     border: none;
 }

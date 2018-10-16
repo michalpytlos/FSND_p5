@@ -1,3 +1,4 @@
+'use strict';
 /**
 * Pre-defined poi types available in the app.
 * The types conform to the OSM format.

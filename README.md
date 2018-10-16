@@ -61,4 +61,4 @@ The components are briefly described in the table below.
 | bootstrap.min.css| Bootstrap 3.3.7 css       |
 | fonts/           | Bootstrap 3.3.7 glyphicons|
 
-Note that only index.html, p5.js and style.css were written by the author of this app.
+Note that only index.html, p5.js, config.js and style.css were written by the author of this app.
