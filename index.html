@@ -94,17 +94,23 @@
           <a href="#"><i class="glyphicon glyphicon-remove" data-bind="click: toggleSidebar"></i></a>
         </div>
       </div>
-      <div class="side-menu-body" data-bind="foreach: map.layers">
-        <h4 class="list-group-heading" data-bind="visible: active()">
-          <a data-bind="attr: { href: '#' + name() + '-list' }, click: $root.toggleList" data-toggle="collapse">
-            <strong><span data-bind="text: info"></span></strong>
-            <span data-bind="css: {'dropup': !collapsed()}"><span class="caret"></span></span>
-          </a>
-        </h4>
-        <div data-bind="visible: active(), attr: { id: name() + '-list' }, foreach: markers.sort(function(l,r){
-          return l.name() > r.name() ? 1:-1;
-        })" class="list-group borderless collapse">
-          <button class="list-group-item" data-bind="visible: active(), click: $root.toggleMarker, text: name, css: { 'active': selected() }"></button>
+      <div class="side-menu-body">
+        <div data-bind="if: isLoadingLoc">
+          <h4 class="text-centre">Loading data ...</h4>
+          <div class="loader centre"></div>
+        </div>
+        <div data-bind="foreach: map.layers, visible: !isLoadingLoc()">
+          <h4 class="list-group-heading" data-bind="visible: active()">
+            <a data-bind="attr: { href: '#' + name() + '-list' }, click: $root.toggleList" data-toggle="collapse">
+              <strong><span data-bind="text: info"></span></strong>
+              <span data-bind="css: {'dropup': !collapsed()}"><span class="caret"></span></span>
+            </a>
+          </h4>
+          <div data-bind="visible: active(), attr: { id: name() + '-list' }, foreach: markers.sort(function(l,r){
+            return l.name() > r.name() ? 1:-1;
+          })" class="list-group borderless collapse">
+            <button class="list-group-item" data-bind="visible: active(), click: $root.toggleMarker, text: name, css: { 'active': selected() }"></button>
+          </div>
         </div>
       </div>
     </div>

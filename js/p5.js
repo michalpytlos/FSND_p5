@@ -411,8 +411,8 @@ p5.Layer.prototype.addMarkers = function(data){
 p5.ViewModel = function() {
 	self = this;
 	this.map = p5.map;
-	this.sideBar = ko.observable(true); // visibility flag for the side bar
-	this.isLoadingLoc = ko.observable(false); // flag for the location change button
+	this.sideBar = ko.observable(true); // visibility flag for side bar
+	this.isLoadingLoc = ko.observable(false); // flag for location change button and loader
 	this.searchPhrase = ko.observable(""); // search phrase for poi filtering
 	// Filter poi by name
 	this.searchMarkers = ko.computed(function () {
@@ -441,7 +441,7 @@ p5.ViewModel = function() {
 	};
 	// Initialize the app with location and poi data
 	this.loadLocation = function(addressForm = null) {
-		// Disable location change button
+		// Display loader and disable location change button
 		self.isLoadingLoc(true);
 		// Clear dataCalls
 		p5.poiData.dataCalls = [];
